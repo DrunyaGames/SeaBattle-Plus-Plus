@@ -4,7 +4,6 @@ from string import ascii_lowercase
 import pygame
 import time
 
-
 client = Client()
 
 
@@ -39,6 +38,7 @@ class Ship:
 
     def __init__(self, x, y, direction, field, ship_len=4):
         self.len = ship_len
+        self.type = str(ship_len)
         self.field = field
         self.x = x
         self.y = y
@@ -79,10 +79,15 @@ class Ship:
             else:
                 self.field.add_obj_to_cells(cells, BaseShip)
         except IndexError:
-            pass
+            return False
+        return True
 
 
 class Hospital(Ship):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.type = 'h'
 
     def place(self, img=False):
         try:
@@ -108,10 +113,16 @@ class Hospital(Ship):
             else:
                 self.field.add_obj_to_cells(cells, BaseShip)
         except IndexError:
-            pass
+            return False
+        return True
 
 
 class TShip(Ship):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.type = 't'
+
     def place(self, img=False):
         try:
             x, y = self.x, self.y
@@ -144,7 +155,8 @@ class TShip(Ship):
             else:
                 self.field.add_obj_to_cells(cells, BaseShip)
         except IndexError:
-            pass
+            return
+        return True
 
 
 class Cell:
@@ -240,7 +252,7 @@ class Field(list, pygame.sprite.Sprite):
     def shoot(self):
         if len(self.targets) < 3:
             return
-        client.send('shoot', [(target.x, target.y) for target in self.targets])
+        client.send('shoot', {'coords': [(target.x, target.y) for target in self.targets]})
         for target in self.targets.copy():
             target.on_press()
 
@@ -277,7 +289,7 @@ class Field(list, pygame.sprite.Sprite):
 class Player:
     def __init__(self, name, player_id):
         self.name = name
-        self.player_id = player_id
+        self.id = player_id
 
 
 class Game:
@@ -344,6 +356,7 @@ class Game:
             self.current_ship = ship
         else:
             self.current_ship = None
+            client.send('ready', {})
 
     def run(self):
         while self.main_loop:
@@ -368,8 +381,14 @@ class Game:
                         if self.current_ship:
                             for cell in self.field.cells:
                                 if cell.rect.collidepoint(mouse_pos):
-                                    self.current_ship.place()
-                                    self.select_next_ship()
+                                    if self.current_ship.place():
+                                        client.send('place_ship', {
+                                            'x': self.current_ship.x,
+                                            'y': self.current_ship.y,
+                                            'direction': self.current_ship.direction,
+                                            'ship_type': self.current_ship.type
+                                        })
+                                        self.select_next_ship()
                                     break
 
                     elif event.button == 3 and self.current_ship:
@@ -417,6 +436,12 @@ def join(self, enemy):
     game.add_player(Player(**self))
     if enemy:
         game.add_enemy(Player(**enemy))
+
+
+@client.handle('player_shoot')
+def player_shoot(player, _, result):
+    if player['player_id'] == game.player.id:
+        game.history.append(str(result))
 
 
 if __name__ == '__main__':

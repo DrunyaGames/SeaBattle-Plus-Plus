@@ -11,9 +11,10 @@ class BaseShip:
         self.y = y
         self.direction = direction
         self.name = self.name % self.len
+        self.shoots = 0
 
-    def shoot(self, x, y):
-        pass
+    def shoot(self, *_):
+        self.shoots += 1
 
 
 class SpecialShip:
@@ -22,10 +23,14 @@ class SpecialShip:
         self.x = x
         self.y = y
         self.direction = direction
+        self.shoots = 0
+
+    def shoot(self, *_):
+        self.shoots += 1
 
 
 class Hospital(SpecialShip):
-    name = 'hospital %s'
+    name = 'hospital'
 
     def place(self):
         x, y = self.x, self.y
@@ -41,6 +46,7 @@ class Hospital(SpecialShip):
         self.field.add_obj_to_cells(cells, self)
 
     def shoot(self, *_):
+        super().shoot()
         self.field.player.game.change_turn()
 
 
@@ -71,5 +77,3 @@ class TShip(SpecialShip):
             ]
 
         self.field.add_obj_to_cells(cells, self)
-
-

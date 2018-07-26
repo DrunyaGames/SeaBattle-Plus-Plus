@@ -19,8 +19,8 @@ class Cell:
         self.shoots += 1
         if self.object:
             self.object.shoot(self.x, self.y)
-            return self.shoots, self.object.name
-        return False
+            return self.object
+        return None
 
     def __bool__(self):
         return bool(self.object)
@@ -53,7 +53,7 @@ class Field(Row):
         y = ship.y
         direction = ship.direction
         if isinstance(ship, BaseShip):
-            if not direction and y - ship.len >= 0:
+            if not direction and y - ship.len + 1 >= 0:
                 cells = [self[x, i + 1] for i in range(y - ship.len, y)]
 
             elif direction == 1:
@@ -62,13 +62,14 @@ class Field(Row):
             elif direction == 2:
                 cells = [self[x, i] for i in range(y, y + ship.len)]
 
-            elif direction == 3 and x - ship.len >= 0:
+            elif direction == 3 and x - ship.len + 1 >= 0:
                 cells = [self[i + 1, y] for i in range(x - ship.len, x)]
             else:
                 raise BadFieldCoords
             self.add_obj_to_cells(cells, ship)
         else:
             ship.place()
+        print(self)
 
     def __getitem__(self, item):
         if isinstance(item, tuple):
@@ -88,9 +89,10 @@ class Field(Row):
 
 
 class Player:
-    available_ships = {'4': 1, '3': 2, '2': 3, '1': 4, 't': 1, 'h': 1}
 
     def __init__(self, user, game, player_id):
+        self.available_ships = {'4': 1, '3': 2, '2': 3, '1': 4, 't': 1, 'h': 1}
+
         self.name = user.name
         self.id = player_id
 
@@ -102,6 +104,10 @@ class Player:
         self.is_ready = False
 
     def place_ship(self, ship_type, x, y, direction):
+
+        if not self.available_ships.get(ship_type):
+            return
+
         if ship_type not in self.available_ships or self.available_ships[ship_type] < 0:
             raise GameError
 
@@ -114,17 +120,19 @@ class Player:
         else:
             raise GameError
         self.field.place_ship(ship)
+        self.available_ships[ship_type] -= 1
 
     def shoot(self, coords):
-        cells = [self.field[x, y] for y, x in coords]
-        results = [cell.shoot() for cell in cells]
+        cells = [self.game.players[not self.id].field[x, y] for x, y in coords]
+        ships = [cell.shoot() for cell in cells]
+        random.shuffle(ships)
         self.game.change_turn()
         self.game.channel.shout(Message(
             'player_shoot',
             {
                 'player': self.dump(),
                 'coords': coords,
-                'result': results
+                'result': [(ship.name, ship.shoots) for ship in list(set(ships))]
             }
         ))
 
@@ -175,5 +183,5 @@ class Game:
 if __name__ == '__main__':
     _game = Game()
     _player = Player(User('test', None), _game, 0)
-    _player.place_ship('t', 0, 2, 1)
-    print(_player.field)
+    _player.place_ship('t', 8, 1, 1)
+

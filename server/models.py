@@ -28,5 +28,6 @@ class Channel(set):
         self.log = logging.getLogger('<Channel %s>' % self.name)
 
     def shout(self, message):
+        self.log.debug('Shout %s' % message.dump())
         for proto in self:
-            proto.send(message)
+            proto.send(message, _log=False)

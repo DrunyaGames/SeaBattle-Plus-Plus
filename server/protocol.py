@@ -51,12 +51,19 @@ def join():
     if game.started:
         raise GameError
     protocol.user.player = game.add_new_player(protocol.user)
-    protocol.send(Message('join_ok', {
+    return protocol.send(Message('join_ok', {
         'self': protocol.user.player.dump(),
         'enemy': game.players[not protocol.user.player.id].dump() if
         len(game.players) > 1 else None
     }))
-    return protocol.send(Message('join_ok'))
+
+
+@auth_required
+@server.handle('place_ship')
+def place(**kwargs):
+    if not protocol.user.player:
+        raise GameError
+    protocol.user.player.place_ship(**kwargs)
 
 
 @auth_required
