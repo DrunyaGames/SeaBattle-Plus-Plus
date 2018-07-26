@@ -1,4 +1,3 @@
-from config import *
 from threading import Thread
 import socket
 import time

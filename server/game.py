@@ -184,4 +184,3 @@ if __name__ == '__main__':
     _game = Game()
     _player = Player(User('test', None), _game, 0)
     _player.place_ship('t', 8, 1, 1)
-

@@ -3,13 +3,12 @@ from pygame.locals import *
 from string import ascii_lowercase
 import pygame
 import time
-from random import randint
 
 client = Client()
 
 
 class NoneObject:
-    color = (100, 100, 100)
+    color = (150, 150, 150)
 
     def __init__(self, cell):
         self.cell = cell
@@ -27,6 +26,10 @@ class TargetObject(NoneObject):
     color = (37, 78, 161)
 
 
+class MarkNoneObject(NoneObject):
+    color = (120, 120, 120)
+
+
 class TempShip(NoneObject):
     color = (119, 209, 149)
 
@@ -35,19 +38,22 @@ class BaseShip(NoneObject):
     color = (122, 4, 4)
 
 
-class BaseMark(NoneObject):
-    color = pygame.Color(27, 107, 60, 100)
+class OurShip(NoneObject):
+    color = (27, 107, 60)
 
 
-class RandomMark(BaseMark):
+class Mark:
+    k = 3
 
-    def __init__(self, cell, _color):
-        super().__init__(cell)
-        self.color = _color
+    def __init__(self, cell, n):
+        self.cell = cell
+        self.screen = cell.screen
+        self.font = pygame.font.Font(None, 25)
+        self.n = str(n)
 
-    @staticmethod
-    def get_color():
-        return pygame.Color(randint(1, 255), randint(1, 255), randint(1, 255), 100)
+    def draw(self):
+        self.screen.blit(self.font.render(self.n, True, (0, 0, 0)),
+                         (self.cell.rect.center[0] - self.k, self.cell.rect.center[1] - self.k))
 
 
 class Ship:
@@ -190,10 +196,12 @@ class Cell:
         self.last_object = obj
 
         self.mark_object = None
+        self.instance = 0
 
     def change_obj(self, obj):
         self.object = obj
-        self.last_object = obj
+        if isinstance(obj, NoneObject):
+            self.last_object = obj
 
     def delete(self):
         self.object = self.last_object
@@ -212,14 +220,20 @@ class Cell:
         pygame.draw.rect(self.screen, (0, 0, 0), self.rect, 1)
         if self.mark_object:
             self.mark_object.draw()
-        elif self.object:
+        if self.object:
             self.object.draw()
 
-    def mark(self, obj):
-        self.mark_object = obj
-
-    def unmark(self):
-        self.mark_object = None
+    def mark(self):
+        if not self.instance:
+            self.last_object = self.object
+            self.object = MarkNoneObject(self)
+        elif self.instance == 1:
+            self.object = BaseShip(self)
+        else:
+            self.object = self.last_object
+        self.instance += 1
+        if self.instance > 2:
+            self.instance = 0
 
     def __bool__(self):
         return bool(self.object)
@@ -244,14 +258,16 @@ class History(list):
         for message in messages:
             self.append(message)
 
-            if len(self) > 19:
-                self.pop(0)
+    def append(self, obj):
+        super().append(obj)
+        if len(self) > 19:
+            self.pop(0)
 
     def draw(self):
         pygame.draw.rect(self.screen, (100, 100, 100), self.output_rect, 2)
         for i, message in enumerate(self):
             self.screen.blit(self.font.render(
-                message[0], True, message[1]), (
+                str(message[1]) + ':' + '   ' + message[0], True, (0, 0, 0)), (
                 self.output_rect.x + 10,
                 self.output_rect.y + self.ind * (i + 1)
             ))
@@ -266,6 +282,7 @@ class Field(list, pygame.sprite.Sprite):
         self.game = _game
         self.screen = _game.screen
         self.n = n
+        self.mark_n = 0
         self.targets = []
         self.to_del = []
 
@@ -395,7 +412,7 @@ class Game:
 
             for event in pygame.event.get():
                 if event.type == QUIT:
-                    return
+                    exit()
                 if event.type == MOUSEBUTTONDOWN:
                     mouse_pos = event.pos
                     if event.button == 1:
@@ -423,13 +440,19 @@ class Game:
                                         self.select_next_ship()
                                     break
 
-                    elif event.button == 3 and self.current_ship:
-                        for cell in self.field.cells:
-                            if cell.rect.collidepoint(mouse_pos):
-                                self.field.del_temp()
-                                self.current_ship.change_direction()
-                                self.current_ship.place(img=True)
-                                break
+                    elif event.button == 3:
+                        if self.current_ship:
+                            for cell in self.field.cells:
+                                if cell.rect.collidepoint(mouse_pos):
+                                    self.field.del_temp()
+                                    self.current_ship.change_direction()
+                                    self.current_ship.place(img=True)
+                                    break
+                        else:
+                            for cell in self.enemy_field.cells:
+                                if cell.rect.collidepoint(mouse_pos):
+                                    cell.mark()
+                                    break
 
                 if event.type == MOUSEMOTION:
                     self.field.del_temp()
@@ -478,11 +501,19 @@ def player_shoot(player, result, coords):
                 cell = game.enemy_field[coord[1]][coord[0]]
                 cell.change_obj(NoneObject(cell))
         else:
-            _color = RandomMark.get_color()
-            game.history.append((', '.join(list(map(str, result))), _color))
+            game.history.append((', '.join(list(map(str, result))),
+                                 game.enemy_field.mark_n))
             for coord in coords:
                 cell = game.enemy_field[coord[1]][coord[0]]
-                cell.change_obj(RandomMark(cell, _color))
+                cell.mark_object = Mark(cell, game.enemy_field.mark_n)
+            game.enemy_field.mark_n += 1
+    else:
+        for coord in coords:
+            cell = game.field[coord[1]][coord[0]]
+            if not cell and not isinstance(cell.object, NoneObject):
+                cell.object = NoneObject(cell)
+            else:
+                cell.object = OurShip(cell)
 
 
 if __name__ == '__main__':
