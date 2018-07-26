@@ -3,6 +3,7 @@ from pygame.locals import *
 from string import ascii_lowercase
 import pygame
 import time
+from random import randint
 
 client = Client()
 
@@ -32,6 +33,21 @@ class TempShip(NoneObject):
 
 class BaseShip(NoneObject):
     color = (122, 4, 4)
+
+
+class BaseMark(NoneObject):
+    color = pygame.Color(27, 107, 60, 100)
+
+
+class RandomMark(BaseMark):
+
+    def __init__(self, cell, _color):
+        super().__init__(cell)
+        self.color = _color
+
+    @staticmethod
+    def get_color():
+        return pygame.Color(randint(1, 255), randint(1, 255), randint(1, 255), 100)
 
 
 class Ship:
@@ -173,6 +189,8 @@ class Cell:
         self.object = obj
         self.last_object = obj
 
+        self.mark_object = None
+
     def change_obj(self, obj):
         self.object = obj
         self.last_object = obj
@@ -192,8 +210,16 @@ class Cell:
 
     def draw(self):
         pygame.draw.rect(self.screen, (0, 0, 0), self.rect, 1)
-        if self.object:
+        if self.mark_object:
+            self.mark_object.draw()
+        elif self.object:
             self.object.draw()
+
+    def mark(self, obj):
+        self.mark_object = obj
+
+    def unmark(self):
+        self.mark_object = None
 
     def __bool__(self):
         return bool(self.object)
@@ -201,6 +227,8 @@ class Cell:
 
 class History(list):
     ind = 20
+    size = 25
+    len = 19
 
     def __init__(self, _game):
         self.game = _game
@@ -209,17 +237,21 @@ class History(list):
         self.output_rect = pygame.Rect(Game.win_field_width * 2 + Game.win_interval + 40, 0,
                                        Game.win_additional_width - 50,
                                        Game.win_field_height)
+        self.font = pygame.font.Font(None, self.size)
         super().__init__()
 
     def add(self, *messages):
         for message in messages:
             self.append(message)
 
+            if len(self) > 19:
+                self.pop(0)
+
     def draw(self):
         pygame.draw.rect(self.screen, (100, 100, 100), self.output_rect, 2)
         for i, message in enumerate(self):
-            self.screen.blit(self.game.font.render(
-                message, True, (0, 0, 0)), (
+            self.screen.blit(self.font.render(
+                message[0], True, message[1]), (
                 self.output_rect.x + 10,
                 self.output_rect.y + self.ind * (i + 1)
             ))
@@ -439,9 +471,18 @@ def join(self, enemy):
 
 
 @client.handle('player_shoot')
-def player_shoot(player, _, result):
+def player_shoot(player, result, coords):
     if player['player_id'] == game.player.id:
-        game.history.append(str(result))
+        if not result:
+            for coord in coords:
+                cell = game.enemy_field[coord[1]][coord[0]]
+                cell.change_obj(NoneObject(cell))
+        else:
+            _color = RandomMark.get_color()
+            game.history.append((', '.join(list(map(str, result))), _color))
+            for coord in coords:
+                cell = game.enemy_field[coord[1]][coord[0]]
+                cell.change_obj(RandomMark(cell, _color))
 
 
 if __name__ == '__main__':

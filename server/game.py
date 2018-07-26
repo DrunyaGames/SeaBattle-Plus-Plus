@@ -132,7 +132,7 @@ class Player:
             {
                 'player': self.dump(),
                 'coords': coords,
-                'result': [(ship.name, ship.shoots) for ship in list(set(ships))]
+                'result': [(ship.name, ship.shoots) for ship in list(set(ships)) if ship]
             }
         ))
 
