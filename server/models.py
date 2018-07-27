@@ -6,11 +6,16 @@ class User:
         self.name = name
         self.player = None
         self.proto = protocol
+        self.channel = None
 
     def send(self, message):
         if not self.proto.connected:
             return
         self.proto.send(message)
+
+    def leave_channel(self):
+        if self.channel:
+            self.channel.remove(self)
 
     def dump(self):
         return {
@@ -31,3 +36,11 @@ class Channel(set):
         self.log.debug('Shout %s' % message.dump())
         for proto in self:
             proto.send(message, _log=False)
+
+    def remove(self, element):
+        element.channel = None
+        super().remove(element)
+
+    def add(self, element):
+        element.channel = self
+        super().add(element)

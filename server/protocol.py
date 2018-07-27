@@ -19,9 +19,10 @@ def auth_required(func):
 
 def check_turn(func):
     def wrapper(*args, **kwargs):
-        # if protocol.user and protocol.user.player \
-        #         and protocol.user.player.id == game.turn and game.started:
         if True:
+            return func(*args, **kwargs)
+        if protocol.user and protocol.user.player \
+                and protocol.user.player.id == game.turn and game.started:
             return func(*args, **kwargs)
         raise AuthError
 
@@ -31,7 +32,10 @@ def check_turn(func):
 @server.on_close()
 def on_close(_):
     protocol.connected = 0
-    if protocol.user and protocol.user.player:
+    if not protocol.user:
+        return
+    protocol.user.leave_channel()
+    if protocol.user.player:
         protocol.user.player.leave()
 
 
@@ -54,7 +58,8 @@ def join():
     return protocol.send(Message('join_ok', {
         'self': protocol.user.player.dump(),
         'enemy': game.players[not protocol.user.player.id].dump() if
-        len(game.players) > 1 else None
+        len(game.players) > 1 else None,
+        'turn': game.turn
     }))
 
 

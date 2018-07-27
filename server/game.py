@@ -102,6 +102,8 @@ class Player:
         self.targets = []
 
         self.is_ready = False
+        self.missed_turns = 0
+        self.turns = 0
 
     def place_ship(self, ship_type, x, y, direction):
 
@@ -130,6 +132,7 @@ class Player:
         self.game.channel.shout(Message(
             'player_shoot',
             {
+                'turn': self.game.turn,
                 'player': self.dump(),
                 'coords': coords,
                 'result': [(ship.name, ship.shoots) for ship in list(set(ships)) if ship]
@@ -141,12 +144,14 @@ class Player:
         self.game.start()
 
     def leave(self):
-        pass
+        self.game.players.remove(self)
+        if not self.game.players:
+            self.game.started = False
 
     def dump(self):
         return {
             'name': self.name,
-            'player_id': self.id
+            'player_id': self.id,
         }
 
 
@@ -177,6 +182,12 @@ class Game:
             self.started = True
 
     def change_turn(self):
+        player = self.players[self.turn]
+        player.turns += 1
+        if player.missed_turns:
+            self.turn = not self.turn
+            player.missed_turns -= 1
+            return self.change_turn()
         self.turn = not self.turn
 
 

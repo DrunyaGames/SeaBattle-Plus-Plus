@@ -299,6 +299,8 @@ class Field(list, pygame.sprite.Sprite):
         self.to_del.clear()
 
     def shoot(self):
+        # if self.game.player.id != self.game.turn:
+        #     return
         if len(self.targets) < 3:
             return
         client.send('shoot', {'coords': [(target.x, target.y) for target in self.targets]})
@@ -323,6 +325,19 @@ class Field(list, pygame.sprite.Sprite):
             self.screen.blit(self.game.font.render(str(i), True, (0, 0, 0)),
                              (Game.win_field_width + 8 +
                               (Game.win_field_width + Game.win_interval) * (self.n - 1), y))
+
+        if not game.player:
+            return
+        if game.turn is None:
+            turn = 'Никто'
+
+        elif game.turn == game.player.id:
+            turn = 'Вы'
+        else:
+            turn = 'Противник'
+
+        self.screen.blit(self.game.font.render('Сейчас ходит: %s' % turn, True, (0, 0, 0)),
+                         ((Game.win_field_width + Game.win_interval) * 2, Game.display[1] - 40))
 
     @staticmethod
     def add_obj_to_cells(cells, obj):
@@ -389,6 +404,8 @@ class Game:
         self.current_ship = None
         self.select_next_ship()
 
+        self.turn = 0
+
     def add_player(self, player):
         self.player = player
 
@@ -407,6 +424,9 @@ class Game:
             self.current_ship = None
             client.send('ready', {})
 
+    def change_turn(self):
+        self.turn = not self.turn
+
     def run(self):
         while self.main_loop:
 
@@ -416,43 +436,35 @@ class Game:
                 if event.type == MOUSEBUTTONDOWN:
                     mouse_pos = event.pos
                     if event.button == 1:
-
                         # noinspection PyArgumentList
                         if self.shoot_button.collidepoint(mouse_pos):
                             self.enemy_field.shoot()
                             continue
 
-                        for cell in self.enemy_field.cells:
-                            if cell.rect.collidepoint(mouse_pos):
+                    for cell in self.enemy_field.cells:
+                        if cell.rect.collidepoint(mouse_pos):
+                            if event.button == 1:
                                 cell.on_press()
-                                break
+                            elif event.button == 3:
+                                cell.mark()
+                            break
 
-                        if self.current_ship:
-                            for cell in self.field.cells:
-                                if cell.rect.collidepoint(mouse_pos):
-                                    if self.current_ship.place():
-                                        client.send('place_ship', {
-                                            'x': self.current_ship.x,
-                                            'y': self.current_ship.y,
-                                            'direction': self.current_ship.direction,
-                                            'ship_type': self.current_ship.type
-                                        })
-                                        self.select_next_ship()
-                                    break
-
-                    elif event.button == 3:
-                        if self.current_ship:
-                            for cell in self.field.cells:
-                                if cell.rect.collidepoint(mouse_pos):
+                    if self.current_ship:
+                        for cell in self.field.cells:
+                            if cell.rect.collidepoint(mouse_pos):
+                                if event.button == 1 and self.current_ship.place():
+                                    client.send('place_ship', {
+                                        'x': self.current_ship.x,
+                                        'y': self.current_ship.y,
+                                        'direction': self.current_ship.direction,
+                                        'ship_type': self.current_ship.type
+                                    })
+                                    self.select_next_ship()
+                                elif event.button == 3:
                                     self.field.del_temp()
                                     self.current_ship.change_direction()
                                     self.current_ship.place(img=True)
-                                    break
-                        else:
-                            for cell in self.enemy_field.cells:
-                                if cell.rect.collidepoint(mouse_pos):
-                                    cell.mark()
-                                    break
+                                break
 
                 if event.type == MOUSEMOTION:
                     self.field.del_temp()
@@ -487,14 +499,16 @@ def auth(**_):
 
 
 @client.handle('join_ok')
-def join(self, enemy):
+def join(self, enemy, turn):
+    game.turn = turn
     game.add_player(Player(**self))
     if enemy:
         game.add_enemy(Player(**enemy))
 
 
 @client.handle('player_shoot')
-def player_shoot(player, result, coords):
+def player_shoot(player, result, coords, turn):
+    game.turn = turn
     if player['player_id'] == game.player.id:
         if not result:
             for coord in coords:

@@ -47,7 +47,7 @@ class Hospital(SpecialShip):
 
     def shoot(self, *_):
         super().shoot()
-        self.field.player.game.change_turn()
+        self.field.player.missed_turns += 1
 
 
 class TShip(SpecialShip):

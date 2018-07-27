@@ -7,7 +7,7 @@ offline = False
 
 
 class Client(Thread):
-    address = ('localhost', 8956)
+    address = ('localhost', 8957)
     buffer_size = 8000
 
     delimiter = b'\r\n'
