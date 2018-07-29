@@ -1,7 +1,7 @@
 from ships import *
 from errors import *
 from easy_tcp.models import Message
-from models import User, Channel
+from models import Channel
 import random
 
 
@@ -47,29 +47,6 @@ class Field(Row):
         self.player = player
         for y in range(self.size):
             self.append(Row(Cell(x, y) for x in range(self.size)))
-
-    def place_ship(self, ship):
-        x = ship.x
-        y = ship.y
-        direction = ship.direction
-        if isinstance(ship, BaseShip):
-            if not direction and y - ship.len + 1 >= 0:
-                cells = [self[x, i + 1] for i in range(y - ship.len, y)]
-
-            elif direction == 1:
-                cells = [self[i, y] for i in range(x, x + ship.len)]
-
-            elif direction == 2:
-                cells = [self[x, i] for i in range(y, y + ship.len)]
-
-            elif direction == 3 and x - ship.len + 1 >= 0:
-                cells = [self[i + 1, y] for i in range(x - ship.len, x)]
-            else:
-                raise BadFieldCoords
-            self.add_obj_to_cells(cells, ship)
-        else:
-            ship.place()
-        print(self)
 
     def __getitem__(self, item):
         if isinstance(item, tuple):
@@ -121,7 +98,7 @@ class Player:
             ship = TShip(x, y, direction, self.field)
         else:
             raise GameError
-        self.field.place_ship(ship)
+        ship.place()
         self.available_ships[ship_type] -= 1
 
     def shoot(self, coords):
@@ -189,9 +166,3 @@ class Game:
             player.missed_turns -= 1
             return self.change_turn()
         self.turn = not self.turn
-
-
-if __name__ == '__main__':
-    _game = Game()
-    _player = Player(User('test', None), _game, 0)
-    _player.place_ship('t', 8, 1, 1)

@@ -10,6 +10,8 @@ client = Client()
 class NoneObject:
     color = (150, 150, 150)
 
+    type = 'None'
+
     def __init__(self, cell):
         self.cell = cell
         self.screen = cell.screen
@@ -23,22 +25,27 @@ class NoneObject:
 
 
 class TargetObject(NoneObject):
+    type = 'target'
     color = (37, 78, 161)
 
 
 class MarkNoneObject(NoneObject):
-    color = (120, 120, 120)
+    type = 'mark'
+    color = (100, 100, 100)
 
 
 class TempShip(NoneObject):
+    type = 'temp'
     color = (119, 209, 149)
 
 
 class BaseShip(NoneObject):
+    type = 'ship'
     color = (122, 4, 4)
 
 
 class OurShip(NoneObject):
+    type = 'ship'
     color = (27, 107, 60)
 
 
@@ -99,7 +106,7 @@ class Ship:
             if img:
                 self.field.draw(cells, TempShip)
             else:
-                self.field.add_obj_to_cells(cells, BaseShip)
+                self.field.add_obj_to_cells(cells, BaseShip, mark=self.type)
         except IndexError:
             return False
         return True
@@ -133,7 +140,7 @@ class Hospital(Ship):
             if img:
                 self.field.draw(cells, TempShip)
             else:
-                self.field.add_obj_to_cells(cells, BaseShip)
+                self.field.add_obj_to_cells(cells, BaseShip, mark=self.type)
         except IndexError:
             return False
         return True
@@ -175,7 +182,7 @@ class TShip(Ship):
             if img:
                 self.field.draw(cells, TempShip)
             else:
-                self.field.add_obj_to_cells(cells, BaseShip)
+                self.field.add_obj_to_cells(cells, BaseShip, mark=self.type)
         except IndexError:
             return
         return True
@@ -200,7 +207,8 @@ class Cell:
 
     def change_obj(self, obj):
         self.object = obj
-        if isinstance(obj, NoneObject):
+        self.instance = 0
+        if obj.type in ['None', 'ship']:
             self.last_object = obj
 
     def delete(self):
@@ -213,15 +221,14 @@ class Cell:
             self.object = self.last_object
         elif len(self.field.targets) < 3:
             self.field.targets.append(self)
-            self.last_object = self.object
-            self.object = TargetObject(self)
+            self.change_obj(TargetObject(self))
 
     def draw(self):
         pygame.draw.rect(self.screen, (0, 0, 0), self.rect, 1)
-        if self.mark_object:
-            self.mark_object.draw()
         if self.object:
             self.object.draw()
+        if self.mark_object:
+            self.mark_object.draw()
 
     def mark(self):
         if not self.instance:
@@ -340,9 +347,11 @@ class Field(list, pygame.sprite.Sprite):
                          ((Game.win_field_width + Game.win_interval) * 2, Game.display[1] - 40))
 
     @staticmethod
-    def add_obj_to_cells(cells, obj):
+    def add_obj_to_cells(cells, obj, mark=None):
         for cell in cells:
             cell.change_obj(obj(cell))
+            if mark:
+                cell.mark_object = Mark(cell, mark)
 
     def draw(self, cells, obj):
         for cell in cells:
