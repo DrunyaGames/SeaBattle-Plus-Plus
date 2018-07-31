@@ -11,7 +11,10 @@ class BaseShip:
         self.y = y
         self.direction = direction
         self.name = self.name % self.len
-        self.shoots = 0
+
+        self.shoots = []
+        self.shoots_count = 0
+        self.is_dead = False
 
     @property
     def cells(self):
@@ -34,8 +37,12 @@ class BaseShip:
     def place(self):
         self.field.add_obj_to_cells(self.cells, self)
 
-    def shoot(self, *_):
-        self.shoots += 1
+    def shoot(self, x, y):
+        self.shoots_count += 1
+        if (x, y) not in self.shoots:
+            self.shoots.append((x, y))
+        if len(self.shoots) >= self.len:
+            self.is_dead = True
 
 
 class SpecialShip:
@@ -44,14 +51,26 @@ class SpecialShip:
         self.x = x
         self.y = y
         self.direction = direction
-        self.shoots = 0
 
-    def shoot(self, *_):
-        self.shoots += 1
+        self.n = 0
+        self.shoots = []
+        self.shoots_count = 0
+        self.is_dead = False
+
+    def shoot(self, x, y):
+        self.shoots_count += 1
+        if (x, y) not in self.shoots:
+            self.shoots.append((x, y))
+        if len(self.shoots) >= self.n:
+            self.is_dead = True
 
 
 class Hospital(SpecialShip):
     name = 'hospital'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_dead = True
 
     @property
     def cells(self):
@@ -70,13 +89,17 @@ class Hospital(SpecialShip):
     def place(self):
         self.field.add_obj_to_cells(self.cells, self)
 
-    def shoot(self, *_):
-        super().shoot()
+    def shoot(self, x, y):
+        super().shoot(x, y)
         self.field.player.missed_turns += 1
 
 
 class TShip(SpecialShip):
-    name = 'tship'
+    name = 'trawler'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.n = 4
 
     @property
     def cells(self):

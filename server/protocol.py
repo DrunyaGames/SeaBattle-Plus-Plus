@@ -19,8 +19,8 @@ def auth_required(func):
 
 def check_turn(func):
     def wrapper(*args, **kwargs):
-        if True:
-            return func(*args, **kwargs)
+        # if True:
+        #     return func(*args, **kwargs)
         if protocol.user and protocol.user.player \
                 and protocol.user.player.id == game.turn and game.started:
             return func(*args, **kwargs)
@@ -83,6 +83,11 @@ def ready():
 @server.handle('shoot')
 def shoot(coords: list):
     protocol.user.player.shoot(coords)
+
+
+@server.handle('random_place')
+def random_place():
+    protocol.user.player.random_place()
 
 
 if __name__ == '__main__':

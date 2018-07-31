@@ -78,6 +78,8 @@ class Player:
         self.field = Field(self)
         self.targets = []
 
+        self.ships = []
+
         self.is_ready = False
         self.missed_turns = 0
         self.turns = 0
@@ -99,22 +101,39 @@ class Player:
         else:
             raise GameError
         ship.place()
+        self.ships.append(ship)
         self.available_ships[ship_type] -= 1
 
     def shoot(self, coords):
-        cells = [self.game.players[not self.id].field[x, y] for x, y in coords]
+        ind = not self.id if len(self.game.players) > 1 else 0
+        cells = [self.game.players[ind].field[x, y] for x, y in coords]
         ships = [cell.shoot() for cell in cells]
         random.shuffle(ships)
         self.game.change_turn()
-        self.game.channel.shout(Message(
-            'player_shoot',
-            {
-                'turn': self.game.turn,
-                'player': self.dump(),
-                'coords': coords,
-                'result': [(ship.name, ship.shoots) for ship in list(set(ships)) if ship]
-            }
-        ))
+        data = {
+            'turn': self.game.turn,
+            'player': self.dump(),
+            'coords': coords,
+            'result': [(ship.name, ship.shoots_count) for ship in list(set(ships)) if ship]
+        }
+        self.game.channel.shout(Message('player_shoot', data))
+        return data
+
+    def random_place(self, count=20):
+        for ship in self.available_ships:
+            while self.available_ships[ship] > 0:
+                while True:
+                    try:
+                        self.place_ship(ship, random.randint(0, 9), random.randint(0, 9), random.randint(0, 3))
+                        break
+                    except BaseError:
+                        pass
+                count -= 1
+                if count <= 0:
+                    return
+
+    def check_win(self):
+        return all([ship.is_dead for ship in self.ships])
 
     def ready(self):
         self.is_ready = True
@@ -150,7 +169,8 @@ class Game:
         player = Player(user, self, len(self.players))
         self.channel.shout(Message('new_player_connected', player.dump()))
         self.players.append(player)
-        self.channel.add(user.proto)
+        if user.proto:
+            self.channel.add(user.proto)
         return player
 
     def start(self):
@@ -159,7 +179,7 @@ class Game:
             self.started = True
 
     def change_turn(self):
-        player = self.players[self.turn]
+        player = self.players[self.turn] if len(self.players) > 1 else self.players[0]
         player.turns += 1
         if player.missed_turns:
             self.turn = not self.turn
